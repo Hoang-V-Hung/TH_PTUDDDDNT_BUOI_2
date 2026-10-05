@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useTheme } from '../../../../contexts/ThemeContext';
-import { CurrentData } from '../../../../types/weather';
+import { CurrentData } from '../../../../types';
 
 interface Props {
   data: CurrentData;
@@ -17,7 +16,6 @@ export const ThoiTietHienTai: React.FC<Props> = ({
   lastUpdated,
   showCity = false,
 }) => {
-  const { colors } = useTheme();
   const { city, temp, condition, high, low } = data;
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -9,40 +9,31 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BackgroundView } from '../../components/BackgroundView';
 import { GlassCard } from '../../components/GlassCard';
 import { MetricCard } from '../../components/MetricCard';
-import { useWeather } from '../../hooks/useWeather';
+import { useHourlyDetail } from '../../hooks';
 
 export const HourlyDetailScreen: React.FC = () => {
-  const route = useRoute<any>();
-  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { weatherData } = useWeather();
-
-  const initialIndex = route.params?.hourIndex ?? 0;
-  const [selectedIndex, setSelectedIndex] = useState<number>(initialIndex);
-
-  const hourlyList = weatherData?.hourly || [];
-  const selectedHour = hourlyList[selectedIndex] || hourlyList[0];
-  const cityName = weatherData?.current?.city || 'Hà Nội';
+  const {
+    selectedIndex,
+    selectedHour,
+    hourlyList,
+    cityName,
+    getIconColor,
+    handleSelectHour,
+    navigation,
+  } = useHourlyDetail();
 
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0;
   const safeTop = Math.max(insets.top, statusBarHeight) + 8;
   const safeBottom = Math.max(insets.bottom, 16) + 40;
 
   if (!selectedHour) return null;
-
-  const getIconColor = (iconName: string, defaultColor: string) => {
-    if (iconName === 'sunny' || iconName === 'partly-sunny') return '#FBBF24';
-    if (iconName === 'rainy' || iconName === 'rainy-outline' || iconName === 'water') return '#38BDF8';
-    if (iconName === 'cloudy' || iconName === 'cloud') return '#FFFFFF';
-    return defaultColor;
-  };
 
   return (
     <BackgroundView>
@@ -107,7 +98,7 @@ export const HourlyDetailScreen: React.FC = () => {
                   <TouchableOpacity
                     key={item.id || idx.toString()}
                     activeOpacity={0.7}
-                    onPress={() => setSelectedIndex(idx)}
+                    onPress={() => handleSelectHour(idx)}
                     style={[
                       styles.selectorItem,
                       isSelected && styles.selectorItemSelected,

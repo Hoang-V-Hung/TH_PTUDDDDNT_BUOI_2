@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -10,193 +10,56 @@ import {
   Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import { useWeather } from '../../hooks/useWeather';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BackgroundView } from '../../components/BackgroundView';
 import { TemperatureBar } from '../../components/TemperatureBar';
+import { useDailyDetail, CHART_HEIGHT, RAIN_CHART_HEIGHT } from '../../hooks';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const CHART_HEIGHT = 160;
-const RAIN_CHART_HEIGHT = 120;
-
 export const DailyDetailScreen: React.FC = () => {
-  const route = useRoute<any>();
-  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { weatherData } = useWeather();
   const { colors } = useTheme();
 
-  const now = new Date();
-  const currentDayOfWeek = now.getDay(); // 0: CN, 1: T2, ...
-  const initialIndex = currentDayOfWeek + (route.params?.dayIndex ?? 0);
-  const [selectedIndex, setSelectedIndex] = useState<number>(initialIndex % 7);
-  const [tempType, setTempType] = useState<'actual' | 'feelsLike'>('actual');
-  const [chartWidth, setChartWidth] = useState<number>(Math.max(200, SCREEN_WIDTH - 108));
-
-  useEffect(() => {
-    if (route.params?.dayIndex !== undefined) {
-      setSelectedIndex((currentDayOfWeek + route.params.dayIndex) % 7);
-    }
-  }, [route.params?.dayIndex, currentDayOfWeek]);
-
-  const dailyList = weatherData?.daily || [];
-  const hourlyList = weatherData?.hourly || [];
+  const {
+    selectedIndex,
+    setSelectedIndex,
+    scrubberDays,
+    currentScrubberItem,
+    selectedDay,
+    tempType,
+    setTempType,
+    chartWidth,
+    handleChartLayout,
+    gridDegrees,
+    interpolatedPoints,
+    maxPt,
+    minPt,
+    dayHourlyData,
+    hourlyPops,
+    isToday,
+    currentX,
+    currentY,
+    currentRainY,
+    activeCurrentTemp,
+    currentPopActual,
+    clockVietnameseStr,
+    forecastNarrative,
+    yesterdayLow,
+    yesterdayHigh,
+    compareNotice,
+    highDiff,
+    weatherData,
+    navigation,
+  } = useDailyDetail();
 
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0;
   const safeTop = Math.max(insets.top, statusBarHeight) + 8;
   const safeBottom = Math.max(insets.bottom, 16) + 30;
 
-  // Xây dựng 7 ngày trong tuần bắt đầu từ Chủ Nhật (chuẩn iOS: CN 4, T2 5, T3 6...)
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - currentDayOfWeek);
-
-  const scrubberDays = Array.from({ length: 7 }).map((_, idx) => {
-    const targetDate = new Date(startOfWeek);
-    targetDate.setDate(startOfWeek.getDate() + idx);
-    const dayCodes = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-    const fullDays = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-    const targetFormatted = `${targetDate.getDate().toString().padStart(2, '0')}/${(targetDate.getMonth() + 1).toString().padStart(2, '0')}`;
-
-    // Lấy dữ liệu thực tế khớp ngày
-    let dayData = dailyList.find(d => d.dateStr === targetFormatted);
-    if (!dayData && weatherData?.yesterday && weatherData.yesterday.dateStr === targetFormatted) {
-      dayData = weatherData.yesterday;
-    }
-    if (!dayData) {
-      const dayOffset = Math.max(0, idx - currentDayOfWeek);
-      dayData = dailyList[dayOffset] || dailyList[0];
-    }
-
-    return {
-      index: idx,
-      isToday: idx === currentDayOfWeek,
-      dayCode: dayCodes[targetDate.getDay()],
-      dateNum: targetDate.getDate(),
-      fullDateStr: `${fullDays[targetDate.getDay()]}, ngày ${targetDate.getDate()} tháng ${targetDate.getMonth() + 1}, ${targetDate.getFullYear()}`,
-      dayData,
-    };
-  });
-
-  const currentScrubberItem = scrubberDays[selectedIndex] || scrubberDays[0];
-  const selectedDay = currentScrubberItem.dayData;
-
   if (!selectedDay) return null;
-
-  // Lấy danh sách 24 giờ thực tế từ API của ngày đang chọn
-  const dayHourlyData = (selectedDay.hourly && selectedDay.hourly.length === 24)
-    ? selectedDay.hourly
-    : hourlyList;
-
-  // 1. Tính toán 24 điểm nhiệt độ thực tế
-  const hourlyTemps = Array.from({ length: 24 }).map((_, h) => {
-    const item = dayHourlyData[h];
-    if (item) {
-      return tempType === 'actual' ? item.temp : item.feelsLike;
-    }
-    const factor = (1 - Math.cos(((h - 5) / 24) * 2 * Math.PI)) / 2;
-    return Math.round(selectedDay.low + factor * (selectedDay.high - selectedDay.low));
-  });
-
-  // Tự động tính toán thang nhiệt độ linh hoạt theo thực tế (không hash cứng 15 - 39)
-  const minTemp = Math.min(...hourlyTemps);
-  const maxTemp = Math.max(...hourlyTemps);
-  const degMin = Math.max(0, Math.floor((minTemp - 2) / 3) * 3);
-  const degMax = Math.ceil((maxTemp + 2) / 3) * 3;
-  const degRange = Math.max(6, degMax - degMin);
-
-  // Tạo các mốc nhiệt độ trục dọc (bước nhảy 3°)
-  const gridDegrees: number[] = [];
-  for (let d = degMax; d >= degMin; d -= 3) {
-    gridDegrees.push(d);
-  }
-
-  // Tạo đường cong mềm mịn bằng nội suy Hermite giữa 24 mốc giờ (48 phân đoạn nối tiếp)
-  const totalSteps = 48;
-  const interpolatedPoints: { x: number; y: number }[] = [];
-  for (let step = 0; step <= totalSteps; step++) {
-    const hFloat = (step / totalSteps) * 23;
-    const h0 = Math.floor(hFloat);
-    const h1 = Math.min(23, h0 + 1);
-    const t = hFloat - h0;
-    const smoothT = (1 - Math.cos(t * Math.PI)) / 2;
-    const tempVal = hourlyTemps[h0] * (1 - smoothT) + hourlyTemps[h1] * smoothT;
-    const clamped = Math.max(degMin, Math.min(degMax, tempVal));
-    const x = (step / totalSteps) * chartWidth;
-    const y = ((degMax - clamped) / degRange) * CHART_HEIGHT;
-    interpolatedPoints.push({ x, y });
-  }
-
-  // Điểm cao nhất (C) và thấp nhất (T)
-  const maxPt = interpolatedPoints.reduce((best, p) => (p.y < best.y ? p : best), interpolatedPoints[0]);
-  const minPt = interpolatedPoints.reduce((best, p) => (p.y > best.y ? p : best), interpolatedPoints[0]);
-
-  // 2. Tính toán 24 cột xác suất mưa thực tế
-  const hourlyPops = Array.from({ length: 24 }).map((_, h) => {
-    const item = dayHourlyData[h];
-    if (item && item.pop !== undefined) {
-      return item.pop;
-    }
-    return selectedDay.pop;
-  });
-
-  // 3. Tính toán vị trí thời gian hiện tại để kẻ vạch dóng thẳng xuống
-  const isToday = currentScrubberItem.isToday;
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
-  const currentHourDecimal = currentHour + currentMinute / 60;
-  const currentX = (currentHourDecimal / 24) * chartWidth;
-
-  // Nhiệt độ hiện tại thực tế
-  const currentTempActual = weatherData?.current?.temp ?? hourlyTemps[currentHour] ?? selectedDay.high;
-  const currentFeelsLikeActual = weatherData?.current?.feelsLike ?? currentTempActual;
-  const activeCurrentTemp = tempType === 'actual' ? currentTempActual : currentFeelsLikeActual;
-
-  const currentClampedTemp = Math.max(degMin, Math.min(degMax, activeCurrentTemp));
-  const currentY = ((degMax - currentClampedTemp) / degRange) * CHART_HEIGHT;
-
-  // Xác suất mưa hiện tại thực tế
-  const currentPopActual = hourlyPops[currentHour] ?? selectedDay.pop;
-  const currentRainY = RAIN_CHART_HEIGHT - Math.max(3, (currentPopActual / 100) * RAIN_CHART_HEIGHT);
-
-  // Định dạng giờ hiển thị
-  const clockMinuteStr = currentMinute.toString().padStart(2, '0');
-  const clockVietnameseStr = currentHour < 12
-    ? `${currentHour === 0 ? 12 : currentHour}:${clockMinuteStr} SA`
-    : `${currentHour === 12 ? 12 : currentHour - 12}:${clockMinuteStr} CH`;
-
-  // 4. Dự báo tự động theo thông tin thời tiết thực
-  const currentTemp = weatherData?.current?.temp ?? selectedDay.high;
-  const feelsLike = weatherData?.current?.feelsLike ?? selectedDay.feelsLikeMax;
-  const diff = feelsLike - currentTemp;
-  const feelsLikeSentence = diff < 0
-    ? `Gió đang khiến bạn cảm thấy mát hơn, khoảng ${feelsLike}°.`
-    : diff > 0
-    ? `Độ ẩm khiến bạn cảm thấy oi bức hơn, khoảng ${feelsLike}°.`
-    : `Nhiệt độ cảm nhận tương đương nhiệt độ thực tế (${feelsLike}°).`;
-
-  const rainSum = selectedDay.precipitation;
-  const rainSentence = rainSum > 0
-    ? `Tổng lượng mưa dự kiến trong ngày khoảng ${rainSum} mm.`
-    : `Không có mưa dự kiến trong ngày.`;
-
-  const forecastNarrative = `Bây giờ: ${currentTemp}° và ${selectedDay.condition.toLowerCase()}. ${feelsLikeSentence} Phạm vi nhiệt độ hôm nay là từ ${selectedDay.low}° đến ${selectedDay.high}°, và cảm nhận từ ${selectedDay.low}° đến ${selectedDay.feelsLikeMax}°. ${rainSentence} Mặt trời lặn lúc ${selectedDay.sunset}, mọc lúc ${selectedDay.sunrise}.`;
-
-  // 5. So sánh hàng ngày dựa trên dữ liệu hôm qua thực tế
-  const yesterdayData = weatherData?.yesterday;
-  const yesterdayLow = yesterdayData ? yesterdayData.low : Math.max(0, selectedDay.low - 1);
-  const yesterdayHigh = yesterdayData ? yesterdayData.high : selectedDay.high - 1;
-  const highDiff = selectedDay.high - yesterdayHigh;
-
-  let compareNotice = 'Nhiệt độ cao nhất hôm nay tương tự như hôm qua.';
-  if (highDiff > 1) {
-    compareNotice = `Nhiệt độ cao nhất hôm nay cao hơn hôm qua khoảng ${highDiff}°.`;
-  } else if (highDiff < -1) {
-    compareNotice = `Nhiệt độ cao nhất hôm nay thấp hơn hôm qua khoảng ${Math.abs(highDiff)}°.`;
-  }
 
   return (
     <BackgroundView>
@@ -285,12 +148,7 @@ export const DailyDetailScreen: React.FC = () => {
             {/* Vùng vẽ đồ thị nhiệt độ */}
             <View
               style={styles.chartAreaWrapper}
-              onLayout={(e) => {
-                const w = e.nativeEvent.layout.width - 36; // trừ phần nhãn nhiệt độ bên phải
-                if (w > 100 && Math.abs(w - chartWidth) > 2) {
-                  setChartWidth(w);
-                }
-              }}
+              onLayout={handleChartLayout}
             >
               {/* Lưới ngang hiển thị các mức nhiệt độ thực tế */}
               <View style={styles.gridLinesContainer}>

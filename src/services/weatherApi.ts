@@ -1,48 +1,8 @@
 import axios from 'axios';
+import { RawWeatherData, LocationItem, GeocodingResult } from '../types';
 
 const WEATHER_API_BASE = 'https://api.open-meteo.com/v1/forecast';
 const REVERSE_GEO_BASE = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
-
-export interface RawWeatherData {
-  latitude: number;
-  longitude: number;
-  current_weather: {
-    temperature: number;
-    windspeed: number;
-    winddirection: number;
-    weathercode: number;
-    is_day: number;
-    time: string;
-  };
-  hourly: {
-    time: string[];
-    temperature_2m: number[];
-    relative_humidity_2m: number[];
-    apparent_temperature: number[];
-    precipitation_probability: number[];
-    precipitation: number[];
-    weathercode: number[];
-    wind_speed_10m: number[];
-    wind_direction_10m: number[];
-    uv_index: number[];
-    visibility: number[];
-  };
-  daily: {
-    time: string[];
-    weathercode: number[];
-    temperature_2m_max: number[];
-    temperature_2m_min: number[];
-    apparent_temperature_max: number[];
-    apparent_temperature_min: number[];
-    sunrise: string[];
-    sunset: string[];
-    uv_index_max: number[];
-    precipitation_sum: number[];
-    precipitation_probability_max: number[];
-    wind_speed_10m_max: number[];
-    wind_direction_10m_dominant: number[];
-  };
-}
 
 export const fetchRawWeather = async (lat: number, lon: number): Promise<RawWeatherData> => {
   try {
@@ -109,3 +69,37 @@ export const fetchCityName = async (lat: number, lon: number): Promise<string> =
     return 'Hà Nội';
   }
 };
+
+const GEOCODING_API_BASE = 'https://geocoding-api.open-meteo.com/v1/search';
+
+export const searchLocations = async (query: string): Promise<LocationItem[]> => {
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.length < 2) return [];
+
+  try {
+    const response = await axios.get(GEOCODING_API_BASE, {
+      params: {
+        name: trimmed,
+        count: 10,
+        language: 'vi',
+        format: 'json',
+      },
+      timeout: 6000,
+    });
+
+    const results: GeocodingResult[] = response.data?.results || [];
+    return results.map((item) => ({
+      id: item.id,
+      name: item.name,
+      admin1: item.admin1,
+      country: item.country,
+      countryCode: item.country_code,
+      lat: item.latitude,
+      lon: item.longitude,
+    }));
+  } catch (error) {
+    console.warn('Lỗi khi tìm kiếm địa điểm:', error);
+    return [];
+  }
+};
+

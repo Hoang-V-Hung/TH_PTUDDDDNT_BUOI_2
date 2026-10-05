@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ThoiTietTheoNgayItem } from './components/ThoiTietTheoNgayItem';
 import { useTheme } from '../../../../contexts/ThemeContext';
-import { DailyData } from '../../../../types/weather';
+import { DailyData } from '../../../../types';
 import { GlassCard } from '../../../../components/GlassCard';
 
 interface Props {

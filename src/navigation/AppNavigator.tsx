@@ -3,7 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import { HourlyDetailScreen } from '../screens/HourlyDetailScreen';
 import { DailyDetailScreen } from '../screens/DailyDetailScreen';
-import { RootStackParamList } from '../types/weather';
+import { LocationSearchScreen } from '../screens/LocationSearchScreen';
+import { RootStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -32,6 +33,14 @@ export const AppNavigator: React.FC = () => {
       <Stack.Screen
         name="DailyDetail"
         component={DailyDetailScreen}
+        options={{
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <Stack.Screen
+        name="LocationSearch"
+        component={LocationSearchScreen}
         options={{
           presentation: 'modal',
           animation: 'slide_from_bottom',

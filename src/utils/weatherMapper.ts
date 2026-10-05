@@ -1,5 +1,4 @@
-import { WeatherData, HourlyData, DailyData } from '../types/weather';
-import { RawWeatherData } from '../services/weatherApi';
+import { WeatherData, HourlyData, DailyData, RawWeatherData } from '../types';
 
 export const getWeatherDescription = (code: number): string => {
   if (code === 0) return 'Quang đãng';

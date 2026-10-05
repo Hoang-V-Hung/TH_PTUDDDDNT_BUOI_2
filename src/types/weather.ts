@@ -71,14 +71,4 @@ export interface WeatherData {
   lastUpdated: string;
 }
 
-export type RootStackParamList = {
-  Home: undefined;
-  HourlyDetail: {
-    hourIndex: number;
-    initialData?: HourlyData;
-  };
-  DailyDetail: {
-    dayIndex: number;
-    initialData?: DailyData;
-  };
-};
+export type { RootStackParamList } from './navigation';

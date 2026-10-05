@@ -1,4 +1,4 @@
-import { WeatherData, HourlyData, DailyData } from '../types/weather';
+import { WeatherData, HourlyData, DailyData } from '../types';
 
 export const generateDefaultWeatherData = (): WeatherData => {
   const now = new Date();

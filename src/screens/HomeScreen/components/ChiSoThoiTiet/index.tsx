@@ -2,9 +2,10 @@ import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
-import { CurrentData } from '../../../../types/weather';
+import { CurrentData } from '../../../../types';
 import { GlassCard } from '../../../../components/GlassCard';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import { calculateDewPoint, calculateMoonPhase } from '../../../../utils';
 
 interface Props {
   data: CurrentData;
@@ -15,25 +16,10 @@ export const ChiSoThoiTiet: React.FC<Props> = ({ data, onSelectMetric }) => {
   const { colors } = useTheme();
 
   // Điểm sương ước lượng từ dữ liệu thực tế
-  const dewPoint = Math.round(data.temp - (100 - data.humidity) / 5);
+  const dewPoint = calculateDewPoint(data.temp, data.humidity);
 
   // Tính toán chu kỳ thiên văn mặt trăng thực tế từ ngày hiện tại
-  const now = new Date();
-  const daysSinceNewMoon = (now.getTime() - new Date(2000, 0, 6, 18, 14).getTime()) / (1000 * 60 * 60 * 24);
-  const currentCycleDay = daysSinceNewMoon % 29.530588853;
-  const phaseFraction = currentCycleDay / 29.530588853;
-  const moonIllumination = Math.round(((1 - Math.cos(phaseFraction * 2 * Math.PI)) / 2) * 100);
-  const daysToFull = Math.round((14.765 - currentCycleDay + 29.530588853) % 29.530588853);
-
-  let moonPhaseTitle = 'LƯỠI LIỀM';
-  if (phaseFraction < 0.05 || phaseFraction > 0.95) moonPhaseTitle = 'TRĂNG MỚI';
-  else if (phaseFraction < 0.22) moonPhaseTitle = 'LƯỠI LIỀM ĐẦU THÁNG';
-  else if (phaseFraction < 0.28) moonPhaseTitle = 'BÁN NGUYỆT ĐẦU THÁNG';
-  else if (phaseFraction < 0.47) moonPhaseTitle = 'TRĂNG KHUYẾT';
-  else if (phaseFraction < 0.53) moonPhaseTitle = 'TRĂNG TRÒN';
-  else if (phaseFraction < 0.72) moonPhaseTitle = 'TRĂNG KHUYẾT CUỐI THÁNG';
-  else if (phaseFraction < 0.78) moonPhaseTitle = 'BÁN NGUYỆT CUỐI THÁNG';
-  else moonPhaseTitle = 'LƯỠI LIỀM CUỐI THÁNG';
+  const moonPhase = calculateMoonPhase();
 
   const realPressure = data.pressure || 1013;
   const realSunset = data.sunset || '17:42';
@@ -273,19 +259,19 @@ export const ChiSoThoiTiet: React.FC<Props> = ({ data, onSelectMetric }) => {
             <View style={styles.header}>
               <Icon name="moon-outline" size={15} color="rgba(255, 255, 255, 0.75)" style={styles.headerIcon} />
               <Text style={styles.headerTitle} numberOfLines={1}>
-                {moonPhaseTitle}
+                {moonPhase.phaseTitle}
               </Text>
             </View>
             <View style={styles.moonRow}>
               <View style={styles.moonStats}>
                 <Text style={styles.moonStatText}>
-                  Chiếu sáng: <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{moonIllumination}%</Text>
+                  Chiếu sáng: <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{moonPhase.illumination}%</Text>
                 </Text>
                 <Text style={[styles.moonStatText, { marginTop: 4 }]}>
-                  Trăng tròn: {daysToFull} ngày
+                  Trăng tròn: {moonPhase.daysToFull} ngày
                 </Text>
                 <Text style={[styles.moonStatText, { marginTop: 4 }]}>
-                  Chu kỳ: ngày thứ {Math.round(currentCycleDay)}
+                  Chu kỳ: ngày thứ {Math.round(moonPhase.currentCycleDay)}
                 </Text>
               </View>
               {/* Moon sphere */}
@@ -293,7 +279,7 @@ export const ChiSoThoiTiet: React.FC<Props> = ({ data, onSelectMetric }) => {
                 <View
                   style={[
                     styles.moonShadow,
-                    { width: `${Math.max(10, 100 - moonIllumination)}%` },
+                    { width: `${Math.max(10, 100 - moonPhase.illumination)}%` },
                   ]}
                 />
               </View>

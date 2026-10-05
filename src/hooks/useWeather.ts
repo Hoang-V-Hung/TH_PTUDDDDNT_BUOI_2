@@ -3,100 +3,98 @@ import Geolocation from '@react-native-community/geolocation';
 import { fetchRawWeather, fetchCityName } from '../services/weatherApi';
 import { mapWeatherData } from '../utils/weatherMapper';
 import { cacheService } from '../services/cacheService';
-import { WeatherData } from '../types/weather';
-
-const DEFAULT_COORDS = {
-  lat: 21.0285,
-  lon: 105.8542,
-  cityName: 'Hà Nội',
-};
+import { WeatherData, LocationItem } from '../types';
 
 export const useWeather = () => {
   // KHỞI TẠO TỨC THÌ: Lấy dữ liệu từ cache ngay lập tức khi mở app
-  // Người dùng KHÔNG phải đợi spinner quay hay màn hình trắng!
   const [weatherData, setWeatherData] = useState<WeatherData>(() => cacheService.getCachedData());
+  const [currentLocation, setCurrentLocation] = useState<LocationItem>(() => cacheService.getCurrentLocation());
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const isMounted = useRef<boolean>(true);
 
-  const fetchWeatherBackground = useCallback(async (isPullToRefresh = false) => {
-    if (isPullToRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setIsUpdating(true);
-    }
-
-    try {
-      let lat = DEFAULT_COORDS.lat;
-      let lon = DEFAULT_COORDS.lon;
-      let cityName = DEFAULT_COORDS.cityName;
-
-      // Cố gắng lấy vị trí GPS thực tế trong thời gian ngắn (3.5 giây)
-      // Nếu không được hoặc từ chối quyền, fallback mượt mà về Hà Nội
-      try {
-        const position = await new Promise<any>((resolve, reject) => {
-          Geolocation.getCurrentPosition(
-            pos => resolve(pos),
-            err => reject(err),
-            { enableHighAccuracy: false, timeout: 3500, maximumAge: 60000 }
-          );
-        });
-
-        if (position && position.coords) {
-          lat = position.coords.latitude;
-          lon = position.coords.longitude;
-          cityName = await fetchCityName(lat, lon);
-        }
-      } catch (locErr) {
-        // Fallback nhẹ nhàng về toạ độ mặc định
-        lat = DEFAULT_COORDS.lat;
-        lon = DEFAULT_COORDS.lon;
-        cityName = DEFAULT_COORDS.cityName;
-      }
-
-      // Gọi API Open-Meteo ngầm
-      const rawData = await fetchRawWeather(lat, lon);
-      const mapped = mapWeatherData(rawData, cityName);
-
-      if (isMounted.current) {
-        setWeatherData(mapped);
-        cacheService.setCachedData(mapped);
-        setError(null);
-      }
-    } catch (err: any) {
-      console.warn('Lỗi khi cập nhật thời tiết:', err?.message || err);
-      // Giữ nguyên dữ liệu cache hiện tại để người dùng vẫn xem bình thường
-      if (isMounted.current) {
-        setError('Không thể cập nhật thời tiết mới nhất');
-      }
-    } finally {
-      if (isMounted.current) {
-        setIsUpdating(false);
-        setIsRefreshing(false);
-      }
-    }
-  }, []);
-
+  // Lắng nghe thay đổi từ cache và location trên toàn app
   useEffect(() => {
     isMounted.current = true;
-    // Chạy fetch ngầm ngay khi app mount
-    fetchWeatherBackground(false);
+
+    const unsubscribeCache = cacheService.subscribe((data) => {
+      if (isMounted.current) {
+        setWeatherData(data);
+      }
+    });
+
+    const unsubscribeLocation = cacheService.subscribeLocation((loc) => {
+      if (isMounted.current) {
+        setCurrentLocation(loc);
+      }
+    });
 
     return () => {
       isMounted.current = false;
+      unsubscribeCache();
+      unsubscribeLocation();
     };
-  }, [fetchWeatherBackground]);
+  }, []);
 
-  const refreshWeather = useCallback(() => {
-    return fetchWeatherBackground(true);
-  }, [fetchWeatherBackground]);
+  // Chọn một địa điểm cụ thể (từ tìm kiếm hoặc danh sách phổ biến)
+  const selectLocation = useCallback(async (loc: LocationItem) => {
+    setIsUpdating(true);
+    setCurrentLocation(loc);
+    cacheService.setCurrentLocation(loc); // Đổi tên thành phố ngay lập tức trên UI
+
+    try {
+      await cacheService.fetchAndApplyWeather(loc);
+      if (isMounted.current) setError(null);
+    } catch (err: any) {
+      console.warn('Lỗi khi tải thời tiết địa điểm:', err?.message || err);
+      if (isMounted.current) setError('Không thể cập nhật thời tiết mới nhất');
+    } finally {
+      if (isMounted.current) setIsUpdating(false);
+    }
+  }, []);
+
+  // Trở lại vị trí GPS hiện tại của thiết bị
+  const resetToGpsLocation = useCallback(async () => {
+    const gpsLoc: LocationItem = {
+      id: 'gps-current',
+      name: 'Vị trí hiện tại',
+      lat: 21.0285,
+      lon: 105.8542,
+      isGps: true,
+    };
+    await selectLocation(gpsLoc);
+  }, [selectLocation]);
+
+  useEffect(() => {
+    // Tự động fetch ngầm thời tiết cho vị trí hiện tại khi app khởi chạy
+    cacheService.fetchAndApplyWeather().catch((err) => {
+      console.warn('Lỗi khởi tạo thời tiết:', err);
+    });
+  }, []);
+
+  const refreshWeather = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await cacheService.fetchAndApplyWeather();
+      if (isMounted.current) setError(null);
+    } catch {
+      if (isMounted.current) setError('Không thể cập nhật thời tiết');
+    } finally {
+      if (isMounted.current) setIsRefreshing(false);
+    }
+  }, []);
 
   return {
     weatherData,
+    currentLocation,
+    isCustomLocation: !currentLocation.isGps && currentLocation.id !== 'hanoi-default',
     isUpdating,
     isRefreshing,
     error,
     refreshWeather,
+    selectLocation,
+    resetToGpsLocation,
   };
 };
+

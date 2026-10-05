@@ -7,14 +7,16 @@ import {
   RefreshControl,
   StatusBar,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThoiTietHienTai } from './components/ThoiTietHienTai';
 import { ThoiTietTheoGio } from './components/ThoiTietTheoGio';
 import { ThoiTietTheoNgay } from './components/ThoiTietTheoNgay';
 import { ChiSoThoiTiet } from './components/ChiSoThoiTiet';
-import { useWeather } from '../../hooks/useWeather';
+import { useWeather } from '../../hooks';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BackgroundView } from '../../components/BackgroundView';
 
@@ -73,9 +75,19 @@ const HomeScreen: React.FC = () => {
       <View style={styles.safeArea}>
         {/* Cụm Header cố định (Apple Weather iOS) - 100% màu nền tự nhiên, không bao giờ bị đè chữ */}
         <View style={[styles.fixedHeader, { paddingTop: safeTop + 8 }]}>
-          <Text style={styles.cityText}>
-            {weatherData.current.city === 'Hà Nội' ? 'Hà Nội' : weatherData.current.city}
-          </Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('LocationSearch')}
+            style={styles.cityTitleTouchable}
+          >
+            <View style={styles.cityRow}>
+              <Text style={styles.cityText} numberOfLines={1}>
+                {weatherData.current.city}
+              </Text>
+              <Icon name="search" size={17} color="rgba(255, 255, 255, 0.65)" style={{ marginLeft: 6, marginTop: 2 }} />
+            </View>
+          </TouchableOpacity>
+
           <Animated.Text
             style={[
               styles.compactWeatherText,
@@ -84,6 +96,15 @@ const HomeScreen: React.FC = () => {
           >
             {weatherData.current.temp}° | {weatherData.current.condition}
           </Animated.Text>
+
+          {/* Nút tìm kiếm vị trí phong cách Apple Weather */}
+          <TouchableOpacity
+            style={[styles.searchBtn, { top: safeTop + 8 }]}
+            onPress={() => navigation.navigate('LocationSearch')}
+            activeOpacity={0.7}
+          >
+            <Icon name="location-outline" size={19} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
 
         {/* Vùng cuộn nội dung: overflow: 'hidden' giới hạn tuyệt đối không cho bất kỳ card nào vượt qua header */}
@@ -158,6 +179,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 4,
     zIndex: 10,
+    position: 'relative',
+  },
+  cityTitleTouchable: {
+    alignItems: 'center',
+    paddingHorizontal: 48,
+  },
+  cityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchBtn: {
+    position: 'absolute',
+    right: 18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 0.8,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
   },
   cityText: {
     fontSize: 32,

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { ThoiTietTheoGioItem } from './components/ThoiTietTheoGioItem';
 import { useTheme } from '../../../../contexts/ThemeContext';
-import { HourlyData } from '../../../../types/weather';
+import { HourlyData } from '../../../../types';
 import { GlassCard } from '../../../../components/GlassCard';
 
 interface Props {

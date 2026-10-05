@@ -1,37 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { cacheService } from '../services/cacheService';
+import { TimeOfDayPeriod, WeatherType, ThemeColors, ThemeContextType } from '../types';
 
-export type TimeOfDayPeriod = 'dawn' | 'day' | 'sunset' | 'night';
-export type WeatherType = 'clear' | 'partlyCloudy' | 'cloudy' | 'rain' | 'thunderstorm' | 'fog' | 'snow';
-
-export interface ThemeColors {
-  period: TimeOfDayPeriod;
-  weatherType: WeatherType;
-  periodName: string;
-  conditionName: string;
-  iconName: string;
-  background: string;
-  gradientColors: string[];
-  ambientGlowColor: string;
-  horizonGlowColor?: string;
-  cardBackground: string;
-  cardBackgroundElevated: string;
-  cardBackgroundSubtle: string;
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  borderColor: string;
-  barBackground: string;
-  barFill: string;
-  accentBlue: string;
-  accentYellow: string;
-  accentOrange: string;
-  accentGreen: string;
-  accentRed: string;
-  statusBarStyle: 'light-content' | 'dark-content';
-  toolbarBackground: string;
-  toolbarBorder: string;
-}
+export type { TimeOfDayPeriod, WeatherType, ThemeColors, ThemeContextType };
 
 // 1. Phân loại mã thời tiết chuẩn WMO sang dạng khí tượng iOS
 export const getWeatherTypeFromCode = (code: number): WeatherType => {
@@ -270,15 +241,6 @@ export const generateAtmosphericTheme = (
     toolbarBorder: borderColor,
   };
 };
-
-interface ThemeContextType {
-  colors: ThemeColors;
-  currentPeriod: TimeOfDayPeriod;
-  weatherType: WeatherType;
-  currentTemp: number;
-  isDark: boolean;
-  toggleTheme: () => void;
-}
 
 const defaultTheme = generateAtmosphericTheme('day', 'clear', 26);
 
